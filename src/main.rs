@@ -2,7 +2,7 @@ extern crate device_query;
 
 use device_query::{DeviceEvents, DeviceState};
 use std::{
-  fs::{read_to_string, write, File},
+  fs::{read_to_string, write},
   thread::sleep,
   time::Duration,
 };
@@ -14,7 +14,6 @@ const BRIGHTNESS_PATH: &str = "/sys/class/leds/asus::kbd_backlight/brightness";
 const BRIGHTNESS_SETTING_PATH: &str = "/sys/class/leds/asus::kbd_backlight/brightness_hw_changed";
 
 fn main() {
-  File::create(RUN_FILE).expect("Failed to create run file :( ");
   write(RUN_FILE, TIMEOUT).unwrap_or(());
   let device_state = DeviceState::new();
   let _guard = device_state.on_key_down(|_| {
