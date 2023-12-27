@@ -10,20 +10,19 @@ use std::{
 
 const TIMEOUT: u64 = 6;
 const TICK: u64 = 3;
-const BRIGHTNESS_PATH: &str = "/sys/class/leds/asus::kbd_backlight/brightness";
+const ASUS_PATH: &str = "/sys/class/leds/asus::kbd_backlight/brightness";
+const THINKPAD_PATH: &str = "/sys/class/leds/tpacpi::kbd_backlight/brightness";
 const BRIGHTNESS_SETTING_PATH: &str = "/sys/class/leds/asus::kbd_backlight/brightness_hw_changed";
 
+fn args_contain(c: &str) -> bool {
+  env::args().any(|arg| arg.starts_with('-') && arg.contains(c))
+}
+
 fn get_brightness_path() -> String {
-  env::args()
-    .enumerate()
-    .fold(None, |a, (i, arg)| match arg == "-p" {
-      true => match env::args().nth(i + 1) {
-        Some(r) => Some(r),
-        None => a,
-      },
-      false => a,
-    })
-    .unwrap_or(String::from(BRIGHTNESS_PATH))
+  String::from(match args_contain("thinkpad") {
+    true => THINKPAD_PATH,
+    false => ASUS_PATH,
+  })
 }
 
 fn main() -> Result<()> {
