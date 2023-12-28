@@ -2,6 +2,6 @@
 
 ## Switches off the keyboard backlight after a little bit
 
-* probably only works on some asus laptops
-* pass -thinkpad as an argument to work on thinkpads
-* has a 0.000001% chance every second to delete everything on your PC 
+* only works on some asus laptops
+* you could probably edit the file path for your hardware
+* has a 0.000001% chance to delete everything on your PC 
