@@ -1,4 +1,4 @@
-use device_query::{DeviceEvents, DeviceState};
+use device_query::{DeviceEvents, DeviceState, Keycode};
 use std::{
   env,
   fs::{read_to_string, write},
@@ -8,45 +8,37 @@ use std::{
   time::{Duration, SystemTime},
 };
 
-const TIMEOUT: u64 = 6;
-const TICK: u64 = 3;
-const ASUS_PATH: &str = "/sys/class/leds/asus::kbd_backlight/brightness";
-const THINKPAD_PATH: &str = "/sys/class/leds/tpacpi::kbd_backlight/brightness";
-const BRIGHTNESS_SETTING_PATH: &str = "/sys/class/leds/asus::kbd_backlight/brightness_hw_changed";
-
-fn args_contain(c: &str) -> bool {
-  env::args().any(|arg| arg.starts_with('-') && arg.contains(c))
-}
-
-fn get_brightness_path() -> String {
-  String::from(match args_contain("thinkpad") {
-    true => THINKPAD_PATH,
-    false => ASUS_PATH,
-  })
+fn write_brightness(turn_off: bool) -> Result<()> {
+  let path = match env::args().any(|arg| arg.starts_with('-') && arg.contains("thinkpad")) {
+    true => "/sys/class/leds/tcpacpi::kbd_backlight/",
+    false => "/sys/class/leds/asus::kbd_backlight/",
+  };
+  write(
+    format!("{path}/brightness"),
+    match turn_off {
+      true => String::from("0"),
+      false => read_to_string(format!("{path}/brightness_hw_changed"))?,
+    },
+  )
 }
 
 fn main() -> Result<()> {
-  let write_brightness =
-    |contents: String| -> Result<()> { write(get_brightness_path(), contents) };
-  let time_mtx = Arc::new(Mutex::new(SystemTime::now()));
-  let time_cpy = Arc::clone(&time_mtx);
-  let _callback_guard = DeviceState::new().on_key_down(move |_| {
+  let mtx = Arc::new(Mutex::new(SystemTime::now()));
+  let guard_mtx = mtx.clone();
+  let callback = move |_: &Keycode| {
     (|| -> Result<()> {
-      let mut time = time_cpy.lock().unwrap();
+      let mut time = guard_mtx.lock().unwrap();
       *time = SystemTime::now();
-      write_brightness(read_to_string(BRIGHTNESS_SETTING_PATH)?)?;
+      write_brightness(false)?;
       Ok(())
     })()
     .expect("I/O fail!")
-  });
+  };
+  let _callback_guard = DeviceState::new().on_key_down(callback);
   loop {
-    if SystemTime::elapsed(&Arc::clone(&time_mtx).lock().unwrap())
-      .unwrap()
-      .as_secs()
-      > TIMEOUT
-    {
-      write_brightness(String::from("0"))?
+    if SystemTime::elapsed(&mtx.lock().unwrap()).unwrap() > Duration::from_secs(6) {
+      write_brightness(true)?
     }
-    sleep(Duration::from_secs(TICK));
+    sleep(Duration::from_secs(3));
   }
 }
