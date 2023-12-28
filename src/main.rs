@@ -7,7 +7,7 @@ use std::{
 };
 
 fn write_brightness(turn_off: bool) {
-  let path = "/sys/class/leds/asus::kbd_backlight/";
+  let path = "/sys/class/leds/asus::kbd_backlight";
   write(
     format!("{path}/brightness"),
     match turn_off {
