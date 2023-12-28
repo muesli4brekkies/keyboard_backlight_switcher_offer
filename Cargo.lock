@@ -38,6 +38,7 @@ name = "keyboard_backlight_switcher_offer"
 version = "0.1.0"
 dependencies = [
  "device_query",
+ "x11",
 ]
 
 [[package]]

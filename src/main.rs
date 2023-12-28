@@ -1,10 +1,11 @@
-use device_query::{DeviceEvents, DeviceState, Keycode};
 use std::{
   fs::{read_to_string, write},
-  sync::{Arc, Mutex},
+  os::raw::c_char,
+  ptr, slice,
   thread::sleep,
   time::{Duration, SystemTime},
 };
+use x11::xlib;
 
 fn write_brightness(turn_off: bool) {
   let path = "/sys/class/leds/asus::kbd_backlight";
@@ -18,18 +19,30 @@ fn write_brightness(turn_off: bool) {
   .unwrap()
 }
 
+fn check_keys() -> bool {
+  unsafe {
+    let display = xlib::XOpenDisplay(ptr::null());
+    if display.as_ref().is_none() {
+      panic!("Could not connect to a X display");
+    }
+    let keymap: *mut c_char = [0; 32].as_mut_ptr();
+    xlib::XQueryKeymap(display, keymap);
+    slice::from_raw_parts(keymap, 32)
+      .iter()
+      .fold(false, |a, b| if *b == 0 { a } else { true })
+  }
+}
+
 fn main() {
-  let last_keypress_time = Arc::new(Mutex::new(SystemTime::now()));
-  let guard_copy = last_keypress_time.clone();
-  let callback = move |_: &Keycode| {
-    *guard_copy.lock().unwrap() = SystemTime::now();
-    write_brightness(false);
-  };
-  let _callback_guard = DeviceState::new().on_key_down(callback);
+  let mut last_keypress_time = SystemTime::now();
   loop {
-    if last_keypress_time.lock().unwrap().elapsed().unwrap() > Duration::from_secs(6) {
+    if check_keys() {
+      last_keypress_time = SystemTime::now();
+      write_brightness(false)
+    }
+    if last_keypress_time.elapsed().unwrap() > Duration::from_secs(5) {
       write_brightness(true)
     }
-    sleep(Duration::from_secs(3));
+    sleep(Duration::from_millis(500));
   }
 }
