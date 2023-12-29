@@ -20,11 +20,8 @@ fn write_brightness(turn_off: bool) {
 }
 
 fn check_keys(display: *mut _XDisplay) -> bool {
+  let keymap: *mut c_char = [0; 32].as_mut_ptr();
   unsafe {
-    if display.as_ref().is_none() {
-      panic!("Could not connect to a X display");
-    }
-    let keymap: *mut c_char = [0; 32].as_mut_ptr();
     xlib::XQueryKeymap(display, keymap);
     slice::from_raw_parts(keymap, 32)
       .iter()
@@ -35,6 +32,9 @@ fn check_keys(display: *mut _XDisplay) -> bool {
 fn main() {
   unsafe {
     let display = xlib::XOpenDisplay(ptr::null());
+    if display.as_ref().is_none() {
+      panic!("Could not connect to a X display");
+    }
     let mut last_keypress_time = SystemTime::now();
     loop {
       if check_keys(display) {
