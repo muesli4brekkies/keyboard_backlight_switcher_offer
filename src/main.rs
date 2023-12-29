@@ -5,7 +5,7 @@ use std::{
   thread::sleep,
   time::{Duration, SystemTime},
 };
-use x11::xlib;
+use x11::xlib::{self, _XDisplay};
 
 fn write_brightness(turn_off: bool) {
   let path = "/sys/class/leds/asus::kbd_backlight";
@@ -19,9 +19,8 @@ fn write_brightness(turn_off: bool) {
   .unwrap()
 }
 
-fn check_keys() -> bool {
+fn check_keys(display: *mut _XDisplay) -> bool {
   unsafe {
-    let display = xlib::XOpenDisplay(ptr::null());
     if display.as_ref().is_none() {
       panic!("Could not connect to a X display");
     }
@@ -34,15 +33,18 @@ fn check_keys() -> bool {
 }
 
 fn main() {
-  let mut last_keypress_time = SystemTime::now();
-  loop {
-    if check_keys() {
-      last_keypress_time = SystemTime::now();
-      write_brightness(false)
+  unsafe {
+    let display = xlib::XOpenDisplay(ptr::null());
+    let mut last_keypress_time = SystemTime::now();
+    loop {
+      if check_keys(display) {
+        last_keypress_time = SystemTime::now();
+        write_brightness(false)
+      }
+      if last_keypress_time.elapsed().unwrap() > Duration::from_secs(5) {
+        write_brightness(true)
+      }
+      sleep(Duration::from_millis(500));
     }
-    if last_keypress_time.elapsed().unwrap() > Duration::from_secs(5) {
-      write_brightness(true)
-    }
-    sleep(Duration::from_millis(500));
   }
 }
