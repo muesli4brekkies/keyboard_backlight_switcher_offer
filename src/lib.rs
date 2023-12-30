@@ -1,34 +1,50 @@
 use std::fs::{read_to_string, write};
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
-use x11_keypress_detect::KeypressDetect;
+use x11_keypress_detect::*;
 
-const PATH: &str = "/sys/class/leds/asus::kbd_backlight";
-fn write_br(turn_off: bool) {
-  let off: String = String::from("0");
-  write(
-    format!("{PATH}/brightness"),
-    match turn_off {
-      true => off,
-      false => read_to_string(format!("{PATH}/brightness_hw_changed")).unwrap_or(off),
-    },
-  )
-  .unwrap()
+struct LastPressTime(SystemTime);
+
+enum Switch {
+  On,
+  Off,
 }
 
-fn reset() -> SystemTime {
-  SystemTime::now()
+impl Switch {
+  fn br(self) {
+    const PATH: &str = "/sys/class/leds/asus::kbd_backlight";
+    let off: String = String::from("0");
+    write(
+      format!("{PATH}/brightness"),
+      match self {
+        Switch::Off => off,
+        Switch::On => read_to_string(format!("{PATH}/brightness_hw_changed")).unwrap_or(off),
+      },
+    )
+    .unwrap()
+  }
+}
+
+impl LastPressTime {
+  fn diff(&self) -> u64 {
+    self.0.elapsed().unwrap().as_secs()
+  }
+
+  fn reset() -> Self {
+    Self(SystemTime::now())
+  }
 }
 
 pub fn detection_loop() {
-  let mut t_last_press = reset();
-  let display = KeypressDetect::get_display();
+  let mut last_press = LastPressTime::reset();
+  let display = get_display();
   loop {
-    if KeypressDetect::key_pressed(&display) {
-      t_last_press = reset();
-      write_br(false);
-    } else if t_last_press.elapsed().unwrap().as_secs() > 5 {
-      write_br(true);
+    if key_pressed(&display) {
+      last_press = LastPressTime::reset();
+      Switch::br(Switch::On);
+    } else if last_press.diff() > 5 {
+      Switch::br(Switch::Off);
     }
+    std::thread::sleep(Duration::from_millis(500))
   }
 }
