@@ -3,8 +3,6 @@ use std::time::{Duration, SystemTime};
 
 use x11_keypress_detect::*;
 
-struct LastPressTime(SystemTime);
-
 enum Switch {
   On,
   Off,
@@ -24,6 +22,8 @@ impl Switch {
     .unwrap()
   }
 }
+
+struct LastPressTime(SystemTime);
 
 impl LastPressTime {
   fn diff(&self) -> u64 {
