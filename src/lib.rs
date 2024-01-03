@@ -1,5 +1,5 @@
 use std::fs::{read_to_string, write};
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, Instant};
 
 use x11_keypress_detect::*;
 
@@ -23,15 +23,15 @@ impl Switch {
   }
 }
 
-struct LastPressTime(SystemTime);
+struct LastPressTime(Instant);
 
 impl LastPressTime {
-  fn diff(&self) -> u64 {
-    self.0.elapsed().unwrap().as_secs()
+  fn is_timeout(&self) -> bool {
+    self.0.elapsed().as_secs() > 5
   }
 
   fn reset() -> Self {
-    Self(SystemTime::now())
+    Self(Instant::now())
   }
 }
 
@@ -42,7 +42,7 @@ pub fn detection_loop() {
     if key_pressed(&display) {
       last_press = LastPressTime::reset();
       Switch::br(Switch::On);
-    } else if last_press.diff() > 5 {
+    } else if last_press.is_timeout() {
       Switch::br(Switch::Off);
     }
     std::thread::sleep(Duration::from_millis(500))
